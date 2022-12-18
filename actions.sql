@@ -12,15 +12,14 @@ BEGIN
         1,       -- level
         0,       -- xp
         100,     -- health
-        10,      -- damage
-        NULL     -- current_quest_id
+        10       -- damage
     ) RETURNING player_id INTO new_player_id;
     RETURN new_player_id;
 END $$ LANGUAGE plpgsql;
 
 -- Создание учетной записи пользователя
 CREATE OR REPLACE FUNCTION
-    create_account(name varchar, phone_number varchar, password varchar) RETURNS int
+    create_account(name varchar, phone_number varchar, password varchar) RETURNS record
 AS $$
 DECLARE
     new_player_id int;
@@ -28,18 +27,25 @@ DECLARE
 BEGIN
     SELECT create_player(name) INTO new_player_id;
     INSERT INTO accounts_info VALUES (
-        DEFAULT,      -- account_id
-        phone_number, -- phone_number
-        password,     -- password
-        new_player_id -- player_id
+        DEFAULT,       -- account_id
+        new_player_id, -- player_id
+        phone_number,  -- phone_number
+        password       -- password
     ) RETURNING account_id INTO new_account_id;
-    RETURN new_account_id;
+    RETURN (new_account_id, new_player_id);
 END
 $$ LANGUAGE plpgsql;
 
 -- Добавление предметов (предмет имеет тип и может иметь бонусы к здоровью и/или атаке)
 CREATE OR REPLACE FUNCTION
-    create_item_info(name varchar, type varchar, could_be_equipped bool, hp_buff int, dmg_buff int) RETURNS int
+    create_item_info(
+        name varchar,
+        type varchar,
+        could_be_equipped bool,
+        hp_buff int,
+        dmg_buff int
+    )
+    RETURNS int
 AS $$
 DECLARE
     new_item_id int;
@@ -67,17 +73,17 @@ $$ LANGUAGE plpgsql;
 
 -- Выдача предметов внутри игры
 CREATE OR REPLACE FUNCTION
-    give_or_update_item(item_id int, player_id int, new_count int) RETURNS void
+    give_or_update_item(_item_id int, _player_id int, _count int) RETURNS void
 AS $$
 BEGIN
     INSERT INTO items VALUES (
-        item_id,   -- item_id
-        player_id,  -- player_id
-        new_count, -- count
-        false      -- equipped
+        _item_id,   -- item_id
+        _player_id, -- player_id
+        _count,     -- count
+        false       -- equipped
     )
-    ON CONFLICT DO UPDATE
-    SET (count) = (new_count);
+    ON CONFLICT(item_id, player_id) DO UPDATE
+    SET count = _count;
 END
 $$ LANGUAGE plpgsql;
 
@@ -92,13 +98,24 @@ $$ LANGUAGE plpgsql;
 
 -- Одеть/снять предмет на персонажа
 CREATE OR REPLACE FUNCTION
-    set_equipped(_player_id int, _item_id int, _equipped bool) RETURNS void
+    set_equipped(_player_id int, _item_id int, _equipped bool) RETURNS bool
 AS $$
+DECLARE
+    could_be_equipped_res bool;
+    updated_rows int;
 BEGIN
-    UPDATE items SET (equipped) = _equipped
+    SELECT could_be_equipped INTO could_be_equipped_res FROM items_info WHERE item_id=_item_id;
+    IF (could_be_equipped_res = false)
+        THEN RETURN false;
+    END IF;
+
+    UPDATE items SET equipped = _equipped
     WHERE
         player_id = _player_id
-        AND item_id = _item_id;
+        AND item_id = _item_id
+        AND count > 0
+    RETURNING * INTO updated_rows;
+    RETURN updated_rows > 0;
 END
 $$ LANGUAGE plpgsql;
 
@@ -159,24 +176,27 @@ CREATE OR REPLACE FUNCTION
     get_player_hp_and_dmg(_player_id int) RETURNS record
 AS $$
 DECLARE
-    result record;
+    base_params record;
     total_buff record;
 BEGIN
     SELECT
-        SUM(info.hp_buff) AS hp_buff,
-        SUM(info.dmg_buff) AS dmg_buff
+        COALESCE(SUM(info.hp_buff), 0) AS hp_buff,
+        COALESCE(SUM(info.dmg_buff), 0) AS dmg_buff
     INTO total_buff
     FROM items item, items_info info
     WHERE
         item.item_id = info.item_id
         AND item.equipped = true
         AND item.player_id = _player_id;
-    SELECT
-        (buff.hp_buff + player.health) AS health,
-        (buff.dmg_buff + player.damage) AS damage
-    INTO result
-    FROM total_buff buff, players player
-    WHERE player.player_id = _player_id;
-    RETURN result;
+
+    SELECT health, damage
+    INTO base_params
+    FROM players
+    WHERE player_id = _player_id;
+
+    RETURN (
+        base_params.health + total_buff.hp_buff,
+        base_params.damage + total_buff.dmg_buff
+    );
 END
 $$ LANGUAGE plpgsql;
