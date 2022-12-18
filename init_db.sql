@@ -1,29 +1,23 @@
-DROP TABLE players;
-DROP TABLE accounts_info;
-DROP TABLE inventories;
-DROP TABLE quests;
-DROP TABLE quests_rewards;
-DROP TABLE quests_done;
-DROP TABLE monster;
-DROP TABLE quests_monsters;
-DROP TABLE items;
-DROP TABLE offers;
-DROP TABLE offer_info;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS accounts_info;
+DROP TABLE IF EXISTS quests;
+DROP TABLE IF EXISTS quests_rewards;
+DROP TABLE IF EXISTS quests_done;
+DROP TABLE IF EXISTS monster;
+DROP TABLE IF EXISTS quests_monsters;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS items_info;
+DROP TABLE IF EXISTS offers;
 
 CREATE TABLE players
 (
     player_id serial primary key,
     name varchar,
-    level INT,
-    xp INT,
-    hp INT,
-    attack INT,
-    money INT,
-    current_quest_id INT,
-    weapon_id INT,
-    armor_id INT,
-    helmet_id INT,
-    gloves_id INT
+    level int,
+    xp int,
+    health int,
+    attack int,
+    current_quest_id int
 );
 
 CREATE TABLE accounts_info
@@ -31,77 +25,73 @@ CREATE TABLE accounts_info
     account_id serial primary key,
     phone_number varchar,
     password varchar,
-    player_id INT
-);
-
-
-CREATE TABLE inventories
-(
-    player_id INT,
-    item_id INT,
-    item_number INT
+    player_id int
 );
 
 CREATE TABLE quests
 (
-    quest_id INT primary key,
+    quest_id int primary key,
     name varchar,
     description varchar,
-    xp INT
+    xp int
 );
 
 CREATE TABLE quests_rewards
 (
-    quest_id INT,
-    reward_item_id INT,
-    reward_item_num INT
+    quest_id int,
+    reward_item_id int,
+    reward_item_num int
 );
 
 -- квесты, которые пользователи прошли
 CREATE TABLE quests_done
 (
-    player_id INT,
-    quest_id INT
+    player_id int,
+    quest_id int
 );
-
 
 CREATE TABLE monster
 (
-    monster_id INT primary key,
+    monster_id int primary key,
     name varchar,
-    hp INT,
-    damage INT,
+    hp int,
+    damage int,
     description varchar,
-    reward INT
+    reward int
 );
 
 CREATE TABLE quests_monsters
 (
-    quest_id INT,
-    monster_id INT
+    quest_id int,
+    monster_id int
 );
 
 CREATE TABLE items
 (
-    item_id INT,
+    item_id serial,
+    owner_id int,
+    count int,
+    equipped bool
+);
+
+CREATE TABLE items_info
+(
+    item_id serial,
     name varchar,
     type varchar,
-    buff_hp INT,
-    buff_damage INT
+    could_be_equipped bool,
+    buff_hp int,
+    buff_damage int
 );
 
 CREATE TABLE offers
 (
-    offer_id INT primary key,
-    player_1_id INT,
-    player_2_id INT
-);
-
-CREATE TABLE offer_info
-(
-    offer_id INT,
-    item_to_id INT,
-    item_to_num INT,
-    item_from_id INT,
-    item_from_num INT
+    offer_id serial primary key,
+    accepted bool,
+    seller_player_id int,
+    seller_item_id int,
+    seller_item_count int,
+    buyer_player_id int,
+    buyer_item_id int,
+    buyer_item_count int
 );
