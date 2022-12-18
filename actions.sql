@@ -12,7 +12,7 @@ BEGIN
         1,       -- level
         0,       -- xp
         100,     -- health
-        10,      -- attack
+        10,      -- damage
         NULL     -- current_quest_id
     ) RETURNING player_id INTO new_player_id;
     RETURN new_player_id;
@@ -39,7 +39,7 @@ $$ LANGUAGE plpgsql;
 
 -- Добавление предметов (предмет имеет тип и может иметь бонусы к здоровью и/или атаке)
 CREATE OR REPLACE FUNCTION
-    create_item_info(name varchar, type varchar, could_be_equipped bool, buff_hp int, buff_damage int) RETURNS int
+    create_item_info(name varchar, type varchar, could_be_equipped bool, hp_buff int, dmg_buff int) RETURNS int
 AS $$
 DECLARE
     new_item_id int;
@@ -49,8 +49,8 @@ BEGIN
         name,              -- name
         type,              -- type
         could_be_equipped, -- could_be_equipped
-        buff_hp,           -- buff_hp
-        buff_damage        -- buff_damage
+        hp_buff,           -- hp_buff
+        dmg_buff           -- dmg_buff
     ) RETURNING item_id INTO new_item_id;
     RETURN new_item_id;
 END
@@ -67,12 +67,12 @@ $$ LANGUAGE plpgsql;
 
 -- Выдача предметов внутри игры
 CREATE OR REPLACE FUNCTION
-    give_or_update_item(item_id int, owner_id int, new_count int) RETURNS void
+    give_or_update_item(item_id int, player_id int, new_count int) RETURNS void
 AS $$
 BEGIN
     INSERT INTO items VALUES (
         item_id,   -- item_id
-        owner_id,  -- owner_id
+        player_id,  -- player_id
         new_count, -- count
         false      -- equipped
     )
@@ -83,21 +83,21 @@ $$ LANGUAGE plpgsql;
 
 -- Удалить предмет из инвенторя
 CREATE OR REPLACE FUNCTION
-    delete_item(_item_id int, _owner_id int) RETURNS void
+    delete_item(_item_id int, _player_id int) RETURNS void
 AS $$
 BEGIN
-    DELETE FROM items WHERE item_id = _item_id AND owner_id = _owner_id;
+    DELETE FROM items WHERE item_id = _item_id AND player_id = _player_id;
 END
 $$ LANGUAGE plpgsql;
 
 -- Одеть/снять предмет на персонажа
 CREATE OR REPLACE FUNCTION
-    set_equipped(_owner_id int, _item_id int, _equipped bool) RETURNS void
+    set_equipped(_player_id int, _item_id int, _equipped bool) RETURNS void
 AS $$
 BEGIN
     UPDATE items SET (equipped) = _equipped
     WHERE
-        owner_id = _owner_id
+        player_id = _player_id
         AND item_id = _item_id;
 END
 $$ LANGUAGE plpgsql;
@@ -141,8 +141,42 @@ END
 $$ LANGUAGE plpgsql;
 
 -- Добавление очков опыта к уровню персонажа
--- TODO: Даня
+CREATE OR REPLACE FUNCTION
+    add_xp(_player_id int, xp_delta int) RETURNS record
+AS $$
+DECLARE
+    result record;
+BEGIN
+    UPDATE players SET (xp, level) = (xp + xp_delta, floor(log(2, 2 + xp + xp_delta)))
+    WHERE player_id = _player_id
+    RETURNING (xp, level) INTO result;
+    RETURN result;
+END
+$$ LANGUAGE plpgsql;
 
--- Вычисление атаки и здоровья персонажа (исходя из очков опыта, и силы/защиты снаряжения)
--- TODO: Даня
-
+-- Вычисление здоровья и атаки персонажа (исходя из очков опыта, и силы/защиты снаряжения)
+CREATE OR REPLACE FUNCTION
+    get_player_hp_and_dmg(_player_id int) RETURNS record
+AS $$
+DECLARE
+    result record;
+    total_buff record;
+BEGIN
+    SELECT
+        SUM(info.hp_buff) AS hp_buff,
+        SUM(info.dmg_buff) AS dmg_buff
+    INTO total_buff
+    FROM items item, items_info info
+    WHERE
+        item.item_id = info.item_id
+        AND item.equipped = true
+        AND item.player_id = _player_id;
+    SELECT
+        (buff.hp_buff + player.health) AS health,
+        (buff.dmg_buff + player.damage) AS damage
+    INTO result
+    FROM total_buff buff, players player
+    WHERE player.player_id = _player_id;
+    RETURN result;
+END
+$$ LANGUAGE plpgsql;

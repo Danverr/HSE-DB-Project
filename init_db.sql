@@ -16,7 +16,7 @@ CREATE TABLE players
     level int,
     xp int,
     health int,
-    attack int,
+    damage int,
     current_quest_id int
 );
 
@@ -69,7 +69,7 @@ CREATE TABLE quests_monsters
 CREATE TABLE items
 (
     item_id serial,
-    owner_id int,
+    player_id int,
     count int,
     equipped bool
 );
@@ -80,8 +80,8 @@ CREATE TABLE items_info
     name varchar,
     type varchar,
     could_be_equipped bool,
-    buff_hp int,
-    buff_damage int
+    hp_buff int,
+    dmg_buff int
 );
 
 CREATE TABLE offers
