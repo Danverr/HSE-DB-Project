@@ -23,6 +23,7 @@ CREATE TABLE players
     player_id serial primary key,
     UNIQUE(player_id),
     name varchar,
+    UNIQUE(name),
     level int,
     xp int,
     health int,
