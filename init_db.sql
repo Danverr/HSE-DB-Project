@@ -23,7 +23,6 @@ CREATE TABLE players
     player_id serial primary key,
     UNIQUE(player_id),
     name varchar,
-    UNIQUE(name),
     level int,
     xp int,
     health int,
@@ -34,7 +33,7 @@ CREATE TABLE accounts_info
 (
     account_id serial primary key,
     UNIQUE(account_id),
-    player_id serial REFERENCES players(player_id),
+    FOREIGN KEY(player_id) REFERENCES players(player_id),
     phone_number varchar,
     password varchar
 );
@@ -52,8 +51,8 @@ CREATE TABLE items_info
 
 CREATE TABLE quests_rewards
 (
-    quest_id serial REFERENCES quests_info(quest_id),
-    reward_item_id serial REFERENCES items_info(item_id),
+    FOREIGN KEY(quest_id) REFERENCES quests_info(quest_id),
+    FOREIGN KEY(reward_item_id) REFERENCES items_info(item_id),
     reward_item_count int
 );
 
@@ -70,21 +69,21 @@ CREATE TABLE monster
 
 CREATE TABLE quests
 (
-    player_id serial REFERENCES players(player_id),
-    quest_id serial REFERENCES quests_info(quest_id),
+    FOREIGN KEY(player_id) REFERENCES players(player_id),
+    FOREIGN KEY(quest_id) REFERENCES quests_info(quest_id),
     status varchar
 );
 
 CREATE TABLE quests_monsters
 (
-    quest_id serial REFERENCES quests_info(quest_id),
-    monster_id serial REFERENCES monster(monster_id)
+    FOREIGN KEY(quest_id) REFERENCES quests_info(quest_id),
+    FOREIGN KEY(monster_id) REFERENCES monster(monster_id)
 );
 
 CREATE TABLE items
 (
-    item_id serial REFERENCES items_info(item_id),
-    player_id serial REFERENCES players(player_id),
+    FOREIGN KEY(item_id) REFERENCES items_info(item_id),
+    FOREIGN KEY(player_id) REFERENCES players(player_id),
     UNIQUE(item_id, player_id),
     count int,
     equipped bool
@@ -95,10 +94,10 @@ CREATE TABLE offers
     offer_id serial primary key,
     UNIQUE(offer_id),
     accepted bool,
-    seller_player_id serial REFERENCES players(player_id),
-    seller_item_id serial REFERENCES items_info(item_id),
+    FOREIGN KEY(seller_player_id) REFERENCES players(player_id),
+    FOREIGN KEY(seller_item_id) REFERENCES items_info(item_id),
     seller_item_count int,
-    buyer_player_id serial REFERENCES players(player_id),
-    buyer_item_id serial REFERENCES items_info(item_id),
+    FOREIGN KEY(buyer_player_id) REFERENCES players(player_id),
+    FOREIGN KEY(buyer_item_id) REFERENCES items_info(item_id),
     buyer_item_count int
 );
